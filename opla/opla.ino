@@ -1,8 +1,7 @@
 #include <Arduino_MKRIoTCarrier.h>
 #include "visuals.h"
-#include "pitches.h"
 #include "sensorData.h"
-#include "soilMouistureLevelSensor.h"
+#include "waterTemperatureMachine.h"
 #include "awsIotCoreMachine.h"
 
 MKRIoTCarrier carrier;
@@ -15,8 +14,9 @@ sensorDataStruct mySensorData;
 // Declare pages
 void printHumidity(void);
 void printTemprature(void);
-void printSoilMoistureLevel(void);
+void printWaterTemperatureLevel(void);
 void printInitialMessage(void);
+void printWiFiMessage();
 
 void setup()
 {
@@ -26,6 +26,13 @@ void setup()
 
   carrier.begin();
   carrier.display.setRotation(0);
+
+  if (!isWaterTemperatureLevelSensorConnected())
+  {
+    Serial.println("ERROR: NO DS18B20 Sensor.");
+    while (1)
+      ;
+  }
 
   if (!ECCX08.begin())
   {
@@ -69,31 +76,28 @@ void loop()
 
   // // poll for new MQTT messages and send keep alives
   // mqttClient.poll();
-
   carrier.display.enableDisplay(true);
   printInitialMessage();
 
-  readSensors(&mySensorData);
+  readSensors();
 
   printHumidity();
   delay(2000);
   printTemprature();
   delay(2000);
-  printSoilMoistureLevel();
+  printWaterTemperatureLevel();
   delay(2000);
   carrier.display.fillScreen(0x0000);
   carrier.display.enableDisplay(false);
   publishMessage();
   delay(5000);
-
 }
 
-void readSensors(struct sensorDataStruct *_sensorData)
+void readSensors()
 {
-
-  _sensorData->humidity = carrier.Env.readHumidity();       // storing humidity value in a variable
-  _sensorData->temperature = carrier.Env.readTemperature(); // storing temprature value in a variable
-  _sensorData->waterLevel = readMoistureLevels();
+  mySensorData.humidity = carrier.Env.readHumidity();       // storing humidity value in a variable
+  mySensorData.temperature = carrier.Env.readTemperature(); // storing temprature value in a variable
+  mySensorData.waterTemperature = readWaterTemperatureLevels();
 }
 
 void printWiFiMessage()
@@ -101,9 +105,10 @@ void printWiFiMessage()
 
   carrier.display.fillScreen(0x0000);
   carrier.display.setCursor(25, 50);
-  carrier.display.setTextSize(1);
-  carrier.display.print("Connecting to WiFi");
-  carrier.display.drawBitmap(70, 90, wifiLogo, 128, 128, 0x070A);
+  carrier.display.setTextSize(2);
+  carrier.display.println("Connecting to");
+  carrier.display.println("WiFi");
+  carrier.display.drawBitmap(50, 90, wifiLogo, 128, 128, 0x070A);
   // Printing a three dots animation
   for (int i = 0; i < 3; i++)
   {
@@ -118,8 +123,8 @@ void printInitialMessage()
   carrier.display.fillScreen(0x0000);
   carrier.display.setCursor(25, 50);
   carrier.display.setTextSize(2);
-  carrier.display.print("ReadingSensors");
-  carrier.display.drawBitmap(70, 85, hydroPonicBitMap, 115, 150, 0x070A);
+  carrier.display.print("Reading Sensors");
+  carrier.display.drawBitmap(65, 85, hydroPonicBitMap, 115, 150, 0x070A);
   // Printing a three dots animation
   for (int i = 0; i < 3; i++)
   {
@@ -154,17 +159,16 @@ void printTemprature()
   carrier.display.print(" C");
 }
 
-void printSoilMoistureLevel()
+void printWaterTemperatureLevel()
 {
 
   carrier.display.fillScreen(0x0000);
-  carrier.display.setCursor(30, 60);
+  carrier.display.setCursor(25, 60);
   carrier.display.setTextSize(2);
-  carrier.display.print("Soil Moisture");
-  carrier.display.drawBitmap(60, 80, soilMoisture, 100, 108, 0xFD4C); // 0xDA5B4A); //draw a thermometer on the MKR IoT carrier's display
-  carrier.display.setTextSize(3);
+  carrier.display.print("Water Temprature");
+  carrier.display.drawBitmap(60, 80, waterTemperatureLogo, 100, 108, 0xFD4C); // 0xDA5B4A); //draw a thermometer on the MKR IoT carrier's display
+  carrier.display.setTextSize(2);
   carrier.display.setCursor(80, 200);
-  carrier.display.print(mySensorData.waterLevel); // display the temperature on the screen
-  carrier.display.print(" %");
+  carrier.display.print(mySensorData.waterTemperature); // display the temperature on the screen
+  carrier.display.print(" C");
 }
-
